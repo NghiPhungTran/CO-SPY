@@ -54,15 +54,15 @@ class TrainDataset(Dataset):
 
 class TestDataset(Dataset):
     def __init__(self, dataset, model, root_path, transform=None, add_jpeg=True):
-        # Load fake images (.png và .jpg)
+        # Load fake images (.png, .jpg, .jpeg)
         fake_dir = os.path.join(root_path, dataset, model)
         self.fake = sorted([
             os.path.join(fake_dir, i)
             for i in os.listdir(fake_dir)
-            if i.endswith(".png") or i.endswith(".jpg")
+            if i.lower().endswith((".png", ".jpg", ".jpeg"))
         ])
 
-        # Load real images (.png và .jpg)
+        # Load real images (.png, .jpg, .jpeg)
         real_dir = os.path.join(root_path, dataset, "real")
         if not os.path.exists(real_dir):
             raise ValueError(f"Real images directory not found: {real_dir}")
@@ -70,17 +70,16 @@ class TestDataset(Dataset):
         self.real = sorted([
             os.path.join(real_dir, i)
             for i in os.listdir(real_dir)
-            if i.endswith(".png") or i.endswith(".jpg")
+            if i.lower().endswith((".png", ".jpg", ".jpeg"))
         ])
 
         self.image_idx = list(range(len(self.real) + len(self.fake)))
         self.labels = [0] * len(self.real) + [1] * len(self.fake)
-
         self.image_paths = self.real + self.fake
 
         self.add_jpeg = add_jpeg
         self.transform = transform
-
+        
     def __len__(self):
         return len(self.image_idx)
 
