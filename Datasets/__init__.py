@@ -5,7 +5,7 @@ from .dataset import TrainDataset, TestDataset
 EVAL_DATASET_LIST = [
     "real_coco_valid",
     "real_ffhq",
-    "real_lsun",
+    "real_lsun"
 ]
 
 # Danh sách model generative
