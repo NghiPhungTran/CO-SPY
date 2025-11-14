@@ -127,7 +127,30 @@ def test(args):
                   f"F1 {metrics['F1']*100:.2f}% | AUC {metrics['AUC']*100:.2f}% | "
                   f"bAcc {metrics['bAcc']*100:.2f}% | FNR {metrics['FNR']*100:.2f}%")
             result_all[dataset_name][model_name] = {"size": len(y_true), **metrics}
-
+            csv_dir = os.path.join(args.save_dir, "csv_outputs")
+            os.makedirs(csv_dir, exist_ok=True)
+            
+            csv_path = os.path.join(csv_dir, f"{dataset_name}_{model_name}.csv")
+            
+            with open(csv_path, mode="w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["path_to_image", "true_label", "pred_percentage", "pred_label"])
+            
+                idx = 0
+                for img_path in test_dataset.image_paths:
+                    pred_score = float(y_pred[idx])
+                    pred_label = 1 if pred_score > 0.5 else 0
+                    true_label = int(y_true[idx])
+            
+                    writer.writerow([
+                        img_path,
+                        true_label,
+                        pred_score,
+                        pred_label
+                    ])
+                    idx += 1
+            
+            print(f"[CSV SAVED] {csv_path}")
             output_all[dataset_name][model_name] = {"y_pred": y_pred, "y_true": y_true}
 
     # Save the results
