@@ -62,44 +62,77 @@ class TestDataset(Dataset):
             if i.endswith(".png") or i.endswith(".jpg")
         ])
 
-        # Load real images trực tiếp từ thư mục dataset (.png và .jpg)
+        # Load real images (.png và .jpg)
         real_dir = os.path.join(root_path, dataset, "real")
         if not os.path.exists(real_dir):
             raise ValueError(f"Real images directory not found: {real_dir}")
+
         self.real = sorted([
             os.path.join(real_dir, i)
             for i in os.listdir(real_dir)
             if i.endswith(".png") or i.endswith(".jpg")
         ])
 
-        # Ensure the number of real and fake images are the same
+        # Giữ nguyên chức năng cũ
         self.image_idx = list(range(len(self.real) + len(self.fake)))
         self.labels = [0] * len(self.real) + [1] * len(self.fake)
 
-        # JPEG compression
-        self.add_jpeg = add_jpeg
+        # ⭐ Thêm chức năng (không ảnh hưởng code cũ)
+        self.image_paths = self.real + self.fake
 
-        # Transformations
+        self.add_jpeg = add_jpeg
         self.transform = transform
 
     def __len__(self):
         return len(self.image_idx)
-    
+
     def __getitem__(self, idx):
         if idx < len(self.real):
-            image = Image.open(self.real[idx]).convert("RGB")
+            img_path = self.real[idx]
         else:
-            image = Image.open(self.fake[idx - len(self.real)]).convert("RGB")
+            img_path = self.fake[idx - len(self.real)]
 
-        # JPEG compression
+        image = Image.open(img_path).convert("RGB")
+
         if self.add_jpeg:
             image = png_to_jpeg(image, quality=95)
 
-        # Transformations
         if self.transform is not None:
             image = self.transform(image)
 
         label = self.labels[idx]
-        return image, label
+
+        return image, label, img_path
+
+
+import csv
+
+csv_dir = os.path.join(args.save_dir, "csv_outputs")
+os.makedirs(csv_dir, exist_ok=True)
+
+csv_path = os.path.join(csv_dir, f"{dataset_name}_{model_name}.csv")
+
+with open(csv_path, mode="w", newline="", encoding="utf-8") as f:
+    writer = csv.writer(f)
+    writer.writerow(["path_to_image", "true_label", "pred_percentage", "pred_label"])
+
+    idx_global = 0
+    for images, labels, paths in tqdm(test_loader, desc="Saving CSV"):
+        preds = detector.predict(images)
+
+        for i in range(len(preds)):
+            pred_score = float(preds[i])
+            pred_label = 1 if pred_score > 0.5 else 0
+
+            writer.writerow([
+                paths[i],
+                int(labels[i]),
+                pred_score,
+                pred_label
+            ])
+
+            idx_global += 1
+
+print(f"Saved CSV: {csv_path}")
 
 
