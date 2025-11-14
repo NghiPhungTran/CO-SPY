@@ -9,7 +9,11 @@ from sklearn.metrics import average_precision_score
 from Detectors import CospyCalibrateDetector
 from Datasets import TestDataset, EVAL_DATASET_LIST, EVAL_MODEL_LIST
 from utils import seed_torch
-
+from sklearn.metrics import (
+    accuracy_score, log_loss, average_precision_score, f1_score,
+    roc_auc_score, balanced_accuracy_score, confusion_matrix
+)
+import numpy as np
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -41,10 +45,49 @@ class Detector():
         return prediction
 
 
+def expected_calibration_error(y_true, y_prob, n_bins=10):
+    """Tính ECE (Expected Calibration Error)"""
+    y_true = np.array(y_true)
+    y_prob = np.array(y_prob)
+    bins = np.linspace(0.0, 1.0, n_bins + 1)
+    ece = 0.0
+    for i in range(n_bins):
+        mask = (y_prob > bins[i]) & (y_prob <= bins[i+1])
+        if np.sum(mask) > 0:
+            prob_mean = y_prob[mask].mean()
+            acc = y_true[mask].mean()
+            ece += np.sum(mask) / len(y_true) * abs(acc - prob_mean)
+    return ece
+
 def evaluate(y_pred, y_true):
+    y_pred = np.array(y_pred)
+    y_true = np.array(y_true)
+
+    # Metrics
+    acc = accuracy_score(y_true, y_pred > 0.5)
+    nll = log_loss(y_true, y_pred, eps=1e-7)
     ap = average_precision_score(y_true, y_pred)
-    accuracy = ((np.array(y_pred) > 0.5) == y_true).mean()
-    return ap, accuracy
+    ece = expected_calibration_error(y_true, y_pred)
+    f1 = f1_score(y_true, y_pred > 0.5)
+    try:
+        auc = roc_auc_score(y_true, y_pred)
+    except:
+        auc = float('nan')
+    bacc = balanced_accuracy_score(y_true, y_pred > 0.5)
+    # False Negative Rate
+    tn, fp, fn, tp = confusion_matrix(y_true, y_pred > 0.5).ravel()
+    fnr = fn / (fn + tp) if (fn + tp) > 0 else float('nan')
+
+    return {
+        "ACC": acc,
+        "NLL": nll,
+        "AP": ap,
+        "ECE": ece,
+        "F1": f1,
+        "AUC": auc,
+        "bAcc": bacc,
+        "FNR": fnr
+    }
 
 
 def test(args):
@@ -77,10 +120,14 @@ def test(args):
                 y_pred.extend(detector.predict(images))
                 y_true.extend(labels.tolist())
 
-            ap, accuracy = evaluate(y_pred, y_true)
-            print(f"Evaluate on {dataset_name} {model_name} | Size {len(y_true)} | AP {ap*100:.2f}% | Accuracy {accuracy*100:.2f}%")
+            metrics = evaluate(y_pred, y_true)
+            print(f"Evaluate on {dataset_name} {model_name} | Size {len(y_true)} | "
+                  f"ACC {metrics['ACC']*100:.2f}% | NLL {metrics['NLL']:.4f} | "
+                  f"AP {metrics['AP']*100:.2f}% | ECE {metrics['ECE']:.4f} | "
+                  f"F1 {metrics['F1']*100:.2f}% | AUC {metrics['AUC']*100:.2f}% | "
+                  f"bAcc {metrics['bAcc']*100:.2f}% | FNR {metrics['FNR']*100:.2f}%")
+            result_all[dataset_name][model_name] = {"size": len(y_true), **metrics}
 
-            result_all[dataset_name][model_name] = {"size": len(y_true), "AP": ap, "Accuracy": accuracy}
             output_all[dataset_name][model_name] = {"y_pred": y_pred, "y_true": y_true}
 
     # Save the results
