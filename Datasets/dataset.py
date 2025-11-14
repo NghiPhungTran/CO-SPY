@@ -54,19 +54,23 @@ class TrainDataset(Dataset):
 
 class TestDataset(Dataset):
     def __init__(self, dataset, model, root_path, transform=None, add_jpeg=True):
-        # Load fake images
+        # Load fake images (.png và .jpg)
         fake_dir = os.path.join(root_path, dataset, model)
-        fake_list = [i for i in os.listdir(fake_dir) if i.endswith(".png")]
-        fake_list.sort()
-        self.fake = [os.path.join(fake_dir, i) for i in fake_list]
+        self.fake = sorted([
+            os.path.join(fake_dir, i)
+            for i in os.listdir(fake_dir)
+            if i.endswith(".png") or i.endswith(".jpg")
+        ])
 
-        # Load real images trực tiếp từ thư mục dataset
+        # Load real images trực tiếp từ thư mục dataset (.png và .jpg)
         real_dir = os.path.join(root_path, dataset, "real")
         if not os.path.exists(real_dir):
             raise ValueError(f"Real images directory not found: {real_dir}")
-        real_list = [os.path.join(real_dir, i) for i in os.listdir(real_dir) if i.endswith(".png")]
-        real_list.sort()
-        self.real = real_list
+        self.real = sorted([
+            os.path.join(real_dir, i)
+            for i in os.listdir(real_dir)
+            if i.endswith(".png") or i.endswith(".jpg")
+        ])
 
         # Ensure the number of real and fake images are the same
         self.image_idx = list(range(len(self.fake) * 2))
@@ -98,4 +102,5 @@ class TestDataset(Dataset):
 
         label = self.labels[idx]
         return image, label
+
 
