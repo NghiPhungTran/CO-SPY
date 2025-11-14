@@ -6,7 +6,6 @@ EVAL_DATASET_LIST = [
     "real_coco_valid",
     "real_ffhq",
     "real_lsun",
-    "real_imagenet_val"
 ]
 
 # Danh sách model generative
