@@ -12,8 +12,9 @@ from Datasets import TestDataset, EVAL_DATASET_LIST, EVAL_MODEL_LIST
 from utils import seed_torch
 from sklearn.metrics import (
     accuracy_score, log_loss, average_precision_score, f1_score,
-    roc_auc_score, balanced_accuracy_score, confusion_matrix
+    roc_auc_score, balanced_accuracy_score, confusion_matrix, recall_score
 )
+
 import numpy as np
 import warnings
 warnings.filterwarnings("ignore")
@@ -59,25 +60,26 @@ def expected_calibration_error(y_true, y_prob, n_bins=10):
             acc = y_true[mask].mean()
             ece += np.sum(mask) / len(y_true) * abs(acc - prob_mean)
     return ece
-
+    
 def evaluate(y_pred, y_true):
     y_pred = np.array(y_pred)
     y_true = np.array(y_true)
+    pred_label = y_pred > 0.5
 
     # Metrics
-    acc = accuracy_score(y_true, y_pred > 0.5)
+    acc = accuracy_score(y_true, pred_label)
     nll = log_loss(y_true, y_pred, eps=1e-7)
     ap = average_precision_score(y_true, y_pred)
     ece = expected_calibration_error(y_true, y_pred)
-    f1 = f1_score(y_true, y_pred > 0.5)
+    f1 = f1_score(y_true, pred_label)
     try:
         auc = roc_auc_score(y_true, y_pred)
     except:
         auc = float('nan')
-    bacc = balanced_accuracy_score(y_true, y_pred > 0.5)
-    # False Negative Rate
-    tn, fp, fn, tp = confusion_matrix(y_true, y_pred > 0.5).ravel()
+    bacc = balanced_accuracy_score(y_true, pred_label)
+    tn, fp, fn, tp = confusion_matrix(y_true, pred_label).ravel()
     fnr = fn / (fn + tp) if (fn + tp) > 0 else float('nan')
+    recall_total = recall_score(y_true, pred_label)  # recall tổng thể
 
     return {
         "ACC": acc,
@@ -87,8 +89,10 @@ def evaluate(y_pred, y_true):
         "F1": f1,
         "AUC": auc,
         "bAcc": bacc,
-        "FNR": fnr
+        "FNR": fnr,
+        "Recall": recall_total
     }
+
 
 
 def test(args):
@@ -124,10 +128,12 @@ def test(args):
 
             metrics = evaluate(y_pred, y_true)
             print(f"Evaluate on {dataset_name} {model_name} | Size {len(y_true)} | "
-                  f"ACC {metrics['ACC']*100:.2f}% | NLL {metrics['NLL']:.4f} | "
-                  f"AP {metrics['AP']*100:.2f}% | ECE {metrics['ECE']:.4f} | "
-                  f"F1 {metrics['F1']*100:.2f}% | AUC {metrics['AUC']*100:.2f}% | "
-                  f"bAcc {metrics['bAcc']*100:.2f}% | FNR {metrics['FNR']*100:.2f}%")
+                  f"ACC {metrics['ACC']*100:.2f}% | Recall {metrics['Recall']*100:.2f}% | "
+                  f"NLL {metrics['NLL']:.4f} | AP {metrics['AP']*100:.2f}% | "
+                  f"ECE {metrics['ECE']:.4f} | F1 {metrics['F1']*100:.2f}% | "
+                  f"AUC {metrics['AUC']*100:.2f}% | bAcc {metrics['bAcc']*100:.2f}% | "
+                  f"FNR {metrics['FNR']*100:.2f}%")
+
             result_all[dataset_name][model_name] = {"size": len(y_true), **metrics}
             csv_dir = os.path.join(args.save_dir, "csv_outputs")
             os.makedirs(csv_dir, exist_ok=True)
