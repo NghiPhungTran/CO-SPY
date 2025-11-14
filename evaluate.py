@@ -5,6 +5,7 @@ import numpy as np
 from tqdm import tqdm
 from PIL import Image
 from sklearn.metrics import average_precision_score
+import csv
 
 from Detectors import CospyCalibrateDetector
 from Datasets import TestDataset, EVAL_DATASET_LIST, EVAL_MODEL_LIST
