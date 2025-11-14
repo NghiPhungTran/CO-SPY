@@ -103,34 +103,6 @@ class TestDataset(Dataset):
         return image, label, img_path
 
 
-import csv
 
-csv_dir = os.path.join(args.save_dir, "csv_outputs")
-os.makedirs(csv_dir, exist_ok=True)
-
-csv_path = os.path.join(csv_dir, f"{dataset_name}_{model_name}.csv")
-
-with open(csv_path, mode="w", newline="", encoding="utf-8") as f:
-    writer = csv.writer(f)
-    writer.writerow(["path_to_image", "true_label", "pred_percentage", "pred_label"])
-
-    idx_global = 0
-    for images, labels, paths in tqdm(test_loader, desc="Saving CSV"):
-        preds = detector.predict(images)
-
-        for i in range(len(preds)):
-            pred_score = float(preds[i])
-            pred_label = 1 if pred_score > 0.5 else 0
-
-            writer.writerow([
-                paths[i],
-                int(labels[i]),
-                pred_score,
-                pred_label
-            ])
-
-            idx_global += 1
-
-print(f"Saved CSV: {csv_path}")
 
 
