@@ -116,9 +116,10 @@ def test(args):
 
             # Evaluate the model
             y_pred, y_true = [], []
-            for (images, labels) in tqdm(test_loader, desc=f"Evaluating {dataset_name} {model_name}"):
+            for images, labels, _ in tqdm(test_loader, desc=f"Evaluating {dataset_name} {model_name}"):
                 y_pred.extend(detector.predict(images))
                 y_true.extend(labels.tolist())
+
 
             metrics = evaluate(y_pred, y_true)
             print(f"Evaluate on {dataset_name} {model_name} | Size {len(y_true)} | "
