@@ -60,14 +60,14 @@ class TestDataset(Dataset):
         fake_list.sort()
         self.fake = [os.path.join(fake_dir, i) for i in fake_list]
 
-        # Take the real images from the dataset
-        if dataset == "mscoco":
-            self.real = MSCOCO2017()
-        elif dataset == "flickr":
-            self.real = Flickr30k()
-        else:
-            raise ValueError(f"Invalidr real dataset name: {dataset}")
-        
+        # Load real images trực tiếp từ thư mục dataset
+        real_dir = os.path.join(root_path, dataset, "real")
+        if not os.path.exists(real_dir):
+            raise ValueError(f"Real images directory not found: {real_dir}")
+        real_list = [os.path.join(real_dir, i) for i in os.listdir(real_dir) if i.endswith(".png")]
+        real_list.sort()
+        self.real = real_list
+
         # Ensure the number of real and fake images are the same
         self.image_idx = list(range(len(self.fake) * 2))
         # First half is real, second half is fake
@@ -84,7 +84,7 @@ class TestDataset(Dataset):
     
     def __getitem__(self, idx):
         if idx < len(self.fake):
-            image, _ = self.real[idx]
+            image = Image.open(self.real[idx]).convert("RGB")
         else:
             image = Image.open(self.fake[idx - len(self.fake)]).convert("RGB")
 
@@ -95,6 +95,7 @@ class TestDataset(Dataset):
         # Transformations
         if self.transform is not None:
             image = self.transform(image)
-        label = self.labels[idx]
 
+        label = self.labels[idx]
         return image, label
+
