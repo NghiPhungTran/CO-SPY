@@ -73,11 +73,9 @@ class TestDataset(Dataset):
             if i.endswith(".png") or i.endswith(".jpg")
         ])
 
-        # Giữ nguyên chức năng cũ
         self.image_idx = list(range(len(self.real) + len(self.fake)))
         self.labels = [0] * len(self.real) + [1] * len(self.fake)
 
-        # ⭐ Thêm chức năng (không ảnh hưởng code cũ)
         self.image_paths = self.real + self.fake
 
         self.add_jpeg = add_jpeg
