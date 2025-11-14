@@ -73,9 +73,8 @@ class TestDataset(Dataset):
         ])
 
         # Ensure the number of real and fake images are the same
-        self.image_idx = list(range(len(self.fake) * 2))
-        # First half is real, second half is fake
-        self.labels = [0] * len(self.fake) + [1] * len(self.fake)
+        self.image_idx = list(range(len(self.real) + len(self.fake)))
+        self.labels = [0] * len(self.real) + [1] * len(self.fake)
 
         # JPEG compression
         self.add_jpeg = add_jpeg
@@ -87,10 +86,10 @@ class TestDataset(Dataset):
         return len(self.image_idx)
     
     def __getitem__(self, idx):
-        if idx < len(self.fake):
+        if idx < len(self.real):
             image = Image.open(self.real[idx]).convert("RGB")
         else:
-            image = Image.open(self.fake[idx - len(self.fake)]).convert("RGB")
+            image = Image.open(self.fake[idx - len(self.real)]).convert("RGB")
 
         # JPEG compression
         if self.add_jpeg:
