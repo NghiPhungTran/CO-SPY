@@ -11,7 +11,7 @@ EVAL_MODEL_LIST = [
     "DiffusionDB",
     "IF-CC1M",
     "SDv15R-CC1M",
-    "stylegan3-t-ffhqu", "stylegan3-t-metfaces",
+    "stylegan3-t-ffhqu", "stylegan3-t-metfaces"
 ]
 
 __all__ = ["TrainDataset", "TestDataset", "EVAL_DATASET_LIST", "EVAL_MODEL_LIST"]
