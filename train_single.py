@@ -14,7 +14,6 @@ from Datasets import TrainDataset, TestDataset, EVAL_DATASET_LIST, EVAL_MODEL_LI
 import warnings
 warnings.filterwarnings("ignore")
 
-
 class Detector():
     def __init__(self, args):
         super(Detector, self).__init__()
@@ -40,10 +39,7 @@ class Detector():
         _lr = 1e-4
         _beta1 = 0.9
         _weight_decay = 0.0
-        params = []
-        for name, param in self.model.named_parameters():
-            if param.requires_grad:
-                params.append(param)
+        params = [p for p in self.model.parameters() if p.requires_grad]
         print(f"Trainable parameters: {len(params)}")
 
         self.optimizer = torch.optim.AdamW(params, lr=_lr, betas=(_beta1, 0.999), weight_decay=_weight_decay)
@@ -54,16 +50,16 @@ class Detector():
         # Scheduler
         self.delr_freq = 10
 
-    # Training function for the detector
+        # Resume info
+        self.start_epoch = 0
+        self.best_acc = 0.0
+
     def train_step(self, batch_data):
-        # Decompose the batch data
         inputs, labels = batch_data
         inputs, labels = inputs.to(self.device), labels.to(self.device)
 
         self.optimizer.zero_grad()
-
         outputs = self.model(inputs)
-
         loss = self.criterion(outputs, labels.unsqueeze(1).float())
         loss.backward()
         self.optimizer.step()
@@ -73,8 +69,6 @@ class Detector():
         y_true = labels.tolist()
         return eval_loss, y_pred, y_true
 
-    # Schedule the training
-    # Early stopping / learning rate adjustment
     def scheduler(self, status_dict):
         epoch = status_dict["epoch"]
         if epoch % self.delr_freq == 0 and epoch != 0:
@@ -82,13 +76,31 @@ class Detector():
                 param_group["lr"] *= 0.9
             self.lr = param_group["lr"]
         return True
-    
-    # Prediction function
+
     def predict(self, inputs):
         inputs = inputs.to(self.device)
         outputs = self.model(inputs)
-        prediction = outputs.sigmoid().flatten().tolist()
-        return prediction
+        return outputs.sigmoid().flatten().tolist()
+
+    # --- Checkpoint functions ---
+    def save_checkpoint(self, path, epoch, best_acc):
+        torch.save({
+            "epoch": epoch,
+            "best_acc": best_acc,
+            "model_state": self.model.state_dict(),
+            "optimizer_state": self.optimizer.state_dict()
+        }, path)
+
+    def load_checkpoint(self, path):
+        if os.path.exists(path):
+            ckpt = torch.load(path, map_location=self.device)
+            self.model.load_state_dict(ckpt["model_state"])
+            self.optimizer.load_state_dict(ckpt["optimizer_state"])
+            self.start_epoch = ckpt.get("epoch", 0) + 1
+            self.best_acc = ckpt.get("best_acc", 0.0)
+            print(f"[INFO] Loaded checkpoint '{path}' (start_epoch={self.start_epoch}, best_acc={self.best_acc})")
+        else:
+            print(f"[WARNING] Checkpoint not found: {path}")
 
 
 def evaluate(y_pred, y_true):
@@ -101,7 +113,23 @@ def train(args):
     # Get the detector
     detector = Detector(args)
 
-    # Load the dataset
+    # --- Resume checkpoint ---
+    start_epoch = 0
+    best_acc = 0
+    if args.resume != "":
+        if os.path.exists(args.resume):
+            print(f"[INFO] Loading checkpoint from {args.resume}")
+            ckpt = torch.load(args.resume, map_location=args.device)
+            detector.model.load_weights(args.resume)
+            # Nếu lưu thêm optimizer & best_acc, load ở đây
+            if "best_acc" in ckpt:
+                best_acc = ckpt["best_acc"]
+            if "epoch" in ckpt:
+                start_epoch = ckpt["epoch"] + 1
+        else:
+            print(f"[WARNING] Resume checkpoint not found: {args.resume}")
+
+    # Load datasets
     train_dataset = TrainDataset(data_path=args.trainset_dirpath,
                                  split="train",
                                  transform=detector.model.train_transform)
@@ -122,69 +150,53 @@ def train(args):
 
     logger.info(f"Train size {len(train_dataset)} | Test size {len(test_dataset)}")
 
-    # Set the saving directory
+    # Set saving directory
     model_dir = os.path.join(args.ckpt, args.detector)
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
+    os.makedirs(model_dir, exist_ok=True)
     log_path = f"{model_dir}/training.log"
     if os.path.exists(log_path):
         os.remove(log_path)
+    logger_id = logger.add(log_path, format="{time:MM-DD at HH:mm:ss} | {level} | {module}:{line} | {message}", level="DEBUG")
 
-    logger_id = logger.add(
-        log_path,
-        format="{time:MM-DD at HH:mm:ss} | {level} | {module}:{line} | {message}",
-        level="DEBUG",
-    )
-
-    # Train the detector
-    best_acc = 0
-    for epoch in range(args.epochs):
-        # Set the model to training mode
+    # Train loop
+    for epoch in range(start_epoch, args.epochs):
         detector.model.train()
         time_start = time.time()
         for step_id, batch_data in enumerate(train_loader):
             eval_loss, y_pred, y_true = detector.train_step(batch_data)
             ap, accuracy = evaluate(y_pred, y_true)
 
-            # Log the training information
             if (step_id + 1) % 100 == 0:
                 time_end = time.time()
                 logger.info(f"Epoch {epoch} | Batch {step_id + 1}/{len(train_loader)} | Loss {eval_loss:.4f} | AP {ap*100:.2f}% | Accuracy {accuracy*100:.2f}% | Time {time_end-time_start:.2f}s")
                 time_start = time.time()
-        
-        # Evaluate the model
+
+        # Evaluate
         detector.model.eval()
         y_pred, y_true = [], []
         for (images, labels) in test_loader:
             y_pred.extend(detector.predict(images))
             y_true.extend(labels.tolist())
-
         ap, accuracy = evaluate(y_pred, y_true)
         logger.info(f"Epoch {epoch} | Test AP {ap*100:.2f}% | Test Accuracy {accuracy*100:.2f}%")
 
-        # Schedule the training
-        status_dict = {"epoch": epoch, "AP": ap, "Accuracy": accuracy}
-        proceed = detector.scheduler(status_dict)
-        if not proceed:
-            logger.info("Early stopping")
-            break
-
-        # Save the model
+        # Save best model
         if accuracy >= best_acc:
             best_acc = accuracy
             detector.model.save_weights(f"{model_dir}/best_model.pth")
-            logger.info(f"Best model saved with accuracy {best_acc.mean()*100:.2f}%")
+            torch.save({"epoch": epoch, "best_acc": best_acc}, f"{model_dir}/best_model_meta.pth")
+            logger.info(f"Best model saved with accuracy {best_acc*100:.2f}%")
 
+        # Save periodic checkpoints
         if epoch % 5 == 0:
             detector.model.save_weights(f"{model_dir}/epoch_{epoch}.pth")
             logger.info(f"Model saved at epoch {epoch}")
 
-    # Save the final model
+    # Save final model
     detector.model.save_weights(f"{model_dir}/final_model.pth")
     logger.info("Final model saved")
-
-    # Remove the logger
     logger.remove(logger_id)
+
 
 
 def test(args):
