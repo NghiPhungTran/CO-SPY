@@ -73,46 +73,29 @@ class CospyDetector(torch.nn.Module):
         ])
 
     def forward(self, x, dropout_rate=0.3):
-        device = next(self.fc.parameters()).device  # đảm bảo cùng device
-        x = x.to(device)
-        
         x_sem = self.sem_transform(x)
         x_art = self.art_transform(x)
-    
+
+        # Forward pass
         sem_feat, sem_coeff = self.sem(x_sem, return_feat=True)
         art_feat, art_coeff = self.art(x_art, return_feat=True)
-    
-        sem_feat, sem_coeff = sem_feat.to(device), sem_coeff.to(device)
-        art_feat, art_coeff = art_feat.to(device), art_coeff.to(device)
-    
-        if self.training:
+
+        # Dropout
+        if self.train():
+            # Random dropout
             if random.random() < dropout_rate:
+                # Randomly select a feature to drop
                 idx_drop = random.randint(0, 1)
                 if idx_drop == 0:
                     sem_coeff = torch.zeros_like(sem_coeff)
                 else:
                     art_coeff = torch.zeros_like(art_coeff)
-    
+
+        # Concatenate the features
         x = torch.cat([sem_coeff * sem_feat, art_coeff * art_feat], dim=1)
         x = self.fc(x)
-    
-        return x
-    
-    
-    def load_checkpoint(self, path, optimizer=None):
-        ckpt = torch.load(path, map_location="cpu")
-    
-        self.sem.load_state_dict(ckpt["sem"])
-        self.art.load_state_dict(ckpt["art"])
-        self.fc.load_state_dict(ckpt["classifier"])
-    
-        if optimizer is not None and "optimizer" in ckpt:
-            optimizer.load_state_dict(ckpt["optimizer"])
-    
-        self.to(next(self.fc.parameters()).device)  # đảm bảo tất cả submodules cùng device
-    
-        return ckpt.get("epoch", 0)
 
+        return x
     # --- Save checkpoint (model + optimizer + epoch) ---
     def save_checkpoint(self, path, optimizer=None, epoch=0):
         ckpt = {
@@ -128,6 +111,21 @@ class CospyDetector(torch.nn.Module):
         torch.save(ckpt, path)
 
 
+    # --- Load checkpoint ---
+    def load_checkpoint(self, path, optimizer=None):
+        ckpt = torch.load(path, map_location="cpu")
+
+        # Load all submodules
+        self.sem.load_state_dict(ckpt["sem"])
+        self.art.load_state_dict(ckpt["art"])
+        self.fc.load_state_dict(ckpt["classifier"])
+
+        # Load optimizer nếu có
+        if optimizer is not None and "optimizer" in ckpt:
+            optimizer.load_state_dict(ckpt["optimizer"])
+
+        # Trả epoch để train tiếp
+        return ckpt.get("epoch", 0)
 
 # Define the label smoothing loss
 class LabelSmoothingBCEWithLogits(torch.nn.Module):
@@ -138,4 +136,4 @@ class LabelSmoothingBCEWithLogits(torch.nn.Module):
     def forward(self, pred, target):
         target = target.float() * (1.0 - self.smoothing) + 0.5 * self.smoothing
         loss = torch.nn.functional.binary_cross_entropy_with_logits(pred, target, reduction='mean')
-        return loss
+        return loss sửa cái nào
