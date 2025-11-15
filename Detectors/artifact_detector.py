@@ -86,14 +86,16 @@ class ArtifactDetector(torch.nn.Module):
 
     # --- Load checkpoint ---
     def load_checkpoint(self, path, optimizer=None):
-        ckpt = torch.load(path, map_location="cpu")
-
+        device = next(self.parameters()).device  
+        ckpt = torch.load(path, map_location=device)
+    
         # Load model weights
         self.load_state_dict(ckpt["model"])
-
+    
         # Load optimizer nếu có
         if optimizer is not None and "optimizer" in ckpt:
             optimizer.load_state_dict(ckpt["optimizer"])
-
+    
         # Trả epoch để train tiếp
-        return ckpt.get("epoch", 0)  sửa cái nào
+        return ckpt.get("epoch", 0)
+
