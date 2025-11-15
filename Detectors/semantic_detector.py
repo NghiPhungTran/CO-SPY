@@ -66,15 +66,21 @@ class SemanticDetector(torch.nn.Module):
         ])
 
     def forward(self, x, return_feat=False):
+        device = next(self.fc.parameters()).device  # lấy device của fc
+        x = x.to(device)  # đảm bảo input cùng device
         feat = self.clip.encode_image(x)
+        feat = feat.to(device)  # đảm bảo feat cùng device với fc
         out = self.fc(feat)
         if return_feat:
             return feat, out
         return out
+    
+    def load_weights(self, weights_path):
+        weights = torch.load(weights_path, map_location="cpu")  # load CPU để tránh lỗi
+        self.fc.weight.data.copy_(weights["fc.weight"])
+        self.fc.bias.data.copy_(weights["fc.bias"])
+        self.to(next(self.fc.parameters()).device)  # đưa model về device hiện tại
 
-    def save_weights(self, weights_path):
-        save_params = {"fc.weight": self.fc.weight.cpu(), "fc.bias": self.fc.bias.cpu()}
-        torch.save(save_params, weights_path)
 
     def load_weights(self, weights_path):
         weights = torch.load(weights_path)
