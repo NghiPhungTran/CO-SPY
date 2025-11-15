@@ -138,4 +138,4 @@ class LabelSmoothingBCEWithLogits(torch.nn.Module):
     def forward(self, pred, target):
         target = target.float() * (1.0 - self.smoothing) + 0.5 * self.smoothing
         loss = torch.nn.functional.binary_cross_entropy_with_logits(pred, target, reduction='mean')
-        return loss sửa cái nào
+        return 
