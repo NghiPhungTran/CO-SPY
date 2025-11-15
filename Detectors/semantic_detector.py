@@ -74,15 +74,13 @@ class SemanticDetector(torch.nn.Module):
         if return_feat:
             return feat, out
         return out
-    
-    def load_weights(self, weights_path):
-        weights = torch.load(weights_path, map_location="cpu")  # load CPU để tránh lỗi
-        self.fc.weight.data.copy_(weights["fc.weight"])
-        self.fc.bias.data.copy_(weights["fc.bias"])
-        self.to(next(self.fc.parameters()).device)  # đưa model về device hiện tại
 
+    def save_weights(self, weights_path):
+        save_params = {"fc.weight": self.fc.weight.cpu(), "fc.bias": self.fc.bias.cpu()}
+        torch.save(save_params, weights_path)
 
     def load_weights(self, weights_path):
-        weights = torch.load(weights_path)
-        self.fc.weight.data = weights["fc.weight"]
-        self.fc.bias.data = weights["fc.bias"]
+        device = next(self.fc.parameters()).device  # lấy device hiện tại của model
+        weights = torch.load(weights_path, map_location=device)
+        self.fc.weight.data = weights["fc.weight"].to(device)
+        self.fc.bias.data = weights["fc.bias"].to(device)
