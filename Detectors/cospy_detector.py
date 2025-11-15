@@ -96,23 +96,36 @@ class CospyDetector(torch.nn.Module):
         x = self.fc(x)
 
         return x
-
-    def save_weights(self, weights_path):
-        save_params = {
-            "sem_fc": weights2cpu(self.sem.fc.state_dict()),
-            "art_fc": weights2cpu(self.art.fc.state_dict()),
-            "art_encoder": weights2cpu(self.art.artifact_encoder.state_dict()),
-            "classifier": weights2cpu(self.fc.state_dict()),
+    # --- Save checkpoint (model + optimizer + epoch) ---
+    def save_checkpoint(self, path, optimizer=None, epoch=0):
+        ckpt = {
+            "sem": self.sem.state_dict(),
+            "art": self.art.state_dict(),
+            "classifier": self.fc.state_dict(),
+            "epoch": epoch,
         }
-        torch.save(save_params, weights_path)
 
-    def load_weights(self, weights_path):
-        weights = torch.load(weights_path)
-        self.sem.fc.load_state_dict(weights["sem_fc"])
-        self.art.fc.load_state_dict(weights["art_fc"])
-        self.art.artifact_encoder.load_state_dict(weights["art_encoder"])
-        self.fc.load_state_dict(weights["classifier"])
+        if optimizer is not None:
+            ckpt["optimizer"] = optimizer.state_dict()
 
+        torch.save(ckpt, path)
+
+
+    # --- Load checkpoint ---
+    def load_checkpoint(self, path, optimizer=None):
+        ckpt = torch.load(path, map_location="cpu")
+
+        # Load all submodules
+        self.sem.load_state_dict(ckpt["sem"])
+        self.art.load_state_dict(ckpt["art"])
+        self.fc.load_state_dict(ckpt["classifier"])
+
+        # Load optimizer nếu có
+        if optimizer is not None and "optimizer" in ckpt:
+            optimizer.load_state_dict(ckpt["optimizer"])
+
+        # Trả epoch để train tiếp
+        return ckpt.get("epoch", 0)
 
 # Define the label smoothing loss
 class LabelSmoothingBCEWithLogits(torch.nn.Module):
