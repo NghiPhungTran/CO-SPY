@@ -72,30 +72,11 @@ class ArtifactDetector(torch.nn.Module):
             return feat, out
         return out
 
-    # --- Save checkpoint (model + optimizer + epoch) ---
-    def save_checkpoint(self, path, optimizer=None, epoch=0):
-        ckpt = {
-            "model": {k: v.cpu() for k, v in self.state_dict().items()},
-            "epoch": epoch
-        }
-        if optimizer is not None:
-            ckpt["optimizer"] = optimizer.state_dict()
+    def save_weights(self, weights_path):
+        save_params = {k: v.cpu() for k, v in self.state_dict().items()}
+        torch.save(save_params, weights_path)
 
-        torch.save(ckpt, path)
-
-
-    # --- Load checkpoint ---
-    def load_checkpoint(self, path, optimizer=None):
-        device = next(self.parameters()).device  
-        ckpt = torch.load(path, map_location=device)
-    
-        # Load model weights
-        self.load_state_dict(ckpt["model"])
-    
-        # Load optimizer nếu có
-        if optimizer is not None and "optimizer" in ckpt:
-            optimizer.load_state_dict(ckpt["optimizer"])
-    
-        # Trả epoch để train tiếp
-        return ckpt.get("epoch", 0)
+    def load_weights(self, weights_path):
+        weights = torch.load(weights_path)
+        self.load_state_dict(weights)
 
