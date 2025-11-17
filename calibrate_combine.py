@@ -135,7 +135,7 @@ def train(args):
 
     # Train the detector
     best_acc = 0
-    for epoch in range(args.epochs):
+    for epoch in range(start_epoch, args.epochs):
         # Set the model to training mode
         detector.model.train()
         time_start = time.time()
