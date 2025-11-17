@@ -95,6 +95,16 @@ def evaluate(y_pred, y_true):
 def train(args):
     # Get the detector
     detector = Detector(args)
+    # --- Resume checkpoint ---
+    start_epoch = 0
+    best_acc = 0
+    
+    if args.resume:
+        resume_path = os.path.join(model_dir, "best_model.pth")
+        if os.path.exists(resume_path):
+            print(f"Resuming from {resume_path} ...")
+            detector.model.load_weights(resume_path)
+            detector.model.to(args.device)
 
     # Load the calibration dataset using the "val" split
     train_dataset = TrainDataset(data_path=args.calibration_dirpath,
@@ -242,6 +252,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=10, help="Number of epochs")
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size")
     parser.add_argument("--seed", type=int, default=1024, help="Random seed")
+    parser.add_argument("--resume", action="store_true", help="Resume training from checkpoint")
 
     args = parser.parse_args()
 
