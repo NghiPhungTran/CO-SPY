@@ -14,8 +14,8 @@ class TrainDataset(Dataset):
         assert split in ["train", "val"]
 
         # Load the dataset for training
-        real_list = get_list(os.path.join(data_path, "tiny-mscoco2017", f"{split}2017"))
-        fake_list = get_list(os.path.join(data_path, "tiny-stable-diffusion", f"{split}2017"))
+        real_list = get_list(os.path.join(data_path, "mscoco2017", f"{split}2017"))
+        fake_list = get_list(os.path.join(data_path, "stable-diffusion-v1-4", f"{split}2017"))
 
         # Setting the labels for the dataset
         self.labels_dict = {}
