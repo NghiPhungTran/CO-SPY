@@ -105,6 +105,20 @@ def evaluate(y_pred, y_true):
 
 
 def train(args):
+    # Set the saving directory **trước**
+    model_dir = os.path.join(args.ckpt, "cospy_calibrate")
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+
+    log_path = f"{model_dir}/training.log"
+    if os.path.exists(log_path):
+        os.remove(log_path)
+
+    logger_id = logger.add(
+        log_path,
+        format="{time:MM-DD at HH:mm:ss} | {level} | {module}:{line} | {message}",
+        level="DEBUG",
+    )
     # Get the detector
     detector = Detector(args)
     # --- Resume checkpoint ---
