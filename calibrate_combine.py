@@ -22,34 +22,46 @@ class Detector():
         # Device
         self.device = args.device
 
-        # Get the detector
+        # ===== Khởi tạo model =====
         self.model = CospyCalibrateDetector(
             semantic_weights_path=args.semantic_weights_path,
-            artifact_weights_path=args.artifact_weights_path)
-
-        # Put the model on the device
+            artifact_weights_path=args.artifact_weights_path
+        )
         self.model.to(self.device)
 
-        # Initialize the fc layer
+        # Khởi tạo fc layer nếu muốn
         torch.nn.init.normal_(self.model.fc.weight.data, 0.0, 0.02)
 
-        # Optimizer
+        # ===== Optimizer =====
         _lr = 1e-1
         _beta1 = 0.9
         _weight_decay = 0.0
-        params = []
-        for name, param in self.model.named_parameters():
-            if param.requires_grad:
-                params.append(param)
+        params = [p for p in self.model.parameters() if p.requires_grad]
         print(f'Trainable parameters: {len(params)}')
-
         self.optimizer = torch.optim.AdamW(params, lr=_lr, betas=(_beta1, 0.999), weight_decay=_weight_decay)
 
-        # Loss function
+        # ===== Loss =====
         self.criterion = torch.nn.BCEWithLogitsLoss()
 
         # Scheduler
         self.delr_freq = 10
+
+        # ===== Load checkpoint nếu có =====
+        if args.resume is not None:
+            print(f"Loading checkpoint from {args.resume}")
+            state = torch.load(args.resume, map_location=self.device)
+
+            # hỗ trợ cả 2 dạng: {'model': state_dict} hoặc state_dict trực tiếp
+            if isinstance(state, dict) and "model" in state:
+                state = state["model"]
+
+            self.model.load_state_dict(state, strict=False)
+            print("Checkpoint loaded. Continue training...")
+
+        self.model.to(self.device)
+        self.model.train()
+
+
 
     # Training function for the detector
     def train_step(self, batch_data):
