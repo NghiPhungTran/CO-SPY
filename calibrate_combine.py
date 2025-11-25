@@ -264,7 +264,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=10, help="Number of epochs")
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size")
     parser.add_argument("--seed", type=int, default=1024, help="Random seed")
-    parser.add_argument("--resume", action="store_true", help="Resume training from checkpoint")
+    parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume training")
 
     args = parser.parse_args()
 
