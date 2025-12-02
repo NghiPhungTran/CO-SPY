@@ -6,7 +6,6 @@ EVAL_DATASET_LIST = [
 ]
 # Danh sách model generative
 EVAL_MODEL_LIST = [
-    "DALLE", 
-    "GAN"
+    "stable_diffusion"
 ]
 __all__ = ["TrainDataset", "TestDataset", "EVAL_DATASET_LIST", "EVAL_MODEL_LIST"]
